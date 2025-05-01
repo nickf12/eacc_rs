@@ -112,7 +112,6 @@ mod tests {
             description: job_description,
             amount: decimal_amount,
             symbol: token_symbol,
-            delivery_time: job1.maxTime,
         };
 
         // Send test job to queue
@@ -194,7 +193,6 @@ mod tests {
             description: "This is a test".to_string(),
             amount: 0.01,
             symbol: "ETH".to_string(),
-            delivery_time: 1,
         };
 
         // Send test job to queue

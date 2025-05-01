@@ -224,7 +224,6 @@ pub async fn filter_publish_job_events(
                                     description: job_description,
                                     amount: decimal_amount,
                                     symbol: token_symbol,
-                                    delivery_time: job.maxTime,
                                 };
                                 match queue_sender.send(notification).await {
                                     Ok(_) => {

@@ -11,7 +11,6 @@ pub struct JobNotification {
     pub description: String,
     pub amount: f64,
     pub symbol: String,
-    pub delivery_time: u32,
 }
 
 // Send notification to Telegram
