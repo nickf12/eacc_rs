@@ -123,19 +123,6 @@ pub async fn get_from_ipfs(
     Ok(decrypted_data)
 }
 
-// // Assuming amount is a U256 and decimals is 18
-// fn format_token_amount(amount: U256, decimals: u32) -> String {
-//     // Convert U256 to f64 by dividing by 10^decimals
-//     let divisor = U256::from(10).pow(U256::from(decimals));
-//     // let amount_f64 = amount.as_u128() as f64 / divisor.as_u128() as f64;
-
-//     // // Format with up to 6 decimal places, trimming trailing zeros
-//     // format!("{:.6}", amount_f64)
-//     //     .trim_end_matches('0')
-//     //     .trim_end_matches('.')
-//     //     .to_string()
-// }
-
 // TODO: Improve timeout/error handling/api
 #[tracing::instrument(name = "filter_publish_job_events", skip(provider))]
 pub async fn filter_publish_job_events(
@@ -235,6 +222,9 @@ pub async fn filter_publish_job_events(
                                     job_id: event.jobId.to_string(),
                                     title: job.title,
                                     description: job_description,
+                                    amount: decimal_amount,
+                                    symbol: token_symbol,
+                                    delivery_time: job.maxTime,
                                 };
                                 match queue_sender.send(notification).await {
                                     Ok(_) => {

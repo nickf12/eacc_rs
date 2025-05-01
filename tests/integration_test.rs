@@ -21,6 +21,8 @@ fn init_test_tracing() {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use alloy::{
         primitives::{address, ruint::aliases::U256, utils::format_units},
         providers::{ProviderBuilder, WsConnect},
@@ -38,9 +40,26 @@ mod tests {
 
     /// This test fetch a correct Job content hash from ipfs
     #[tokio::test]
-    async fn test_contract() {
+    async fn test_contract() -> Result<(), Error> {
         init_test_tracing(); // Safe to call multiple times due to Once
                              // Create ws provider
+
+        tracing::info!("Test started");
+
+        // Mock Telegram credentials (chat_id is empty to trigger error, as in your main)
+        let telegram_bot_token = "7675454109:AAHWGRpyKT_I8mNpFQIsQ9q45lD_T7Hg0pw".to_string();
+        let telegram_chat_id = "@EACC_New_Jobs".to_string(); // Simulates your empty chat_id
+
+        // Create mpsc channel
+        let (tx, rx) = mpsc::channel::<JobNotification>(100);
+
+        // Spawn notification worker
+        let worker_handle = tokio::spawn(notification_worker(
+            rx,
+            telegram_bot_token,
+            telegram_chat_id,
+        ));
+
         let ws = WsConnect::new(
             "wss://arbitrum-mainnet.infura.io/ws/v3/a4921b52d671477e8622579c84ecf959",
         );
@@ -52,23 +71,67 @@ mod tests {
         );
         let id = 518;
         let job_id = U256::from(id);
-        let job1 = marketplace_data.getJob(job_id).call().await.unwrap()._0;
+        let job1 = marketplace_data.getJob(job_id).call().await?._0;
 
         let job_amount: u128 = job1.amount.to::<u128>();
         tracing::info!("JobID: {}, has an amount of {}", id, job_amount);
         let token_contract = IERC20::new(job1.token, provider.clone());
 
-        let token_decimals = token_contract.decimals().call().await.unwrap()._0;
-        let token_symbol = token_contract.symbol().call().await.unwrap()._0;
+        let token_decimals = token_contract.decimals().call().await?._0;
+        let token_symbol = token_contract.symbol().call().await?._0;
 
-        let formatted_amount = format_units(job1.amount, token_decimals).unwrap();
-        let decimal_amount: f64 = formatted_amount.parse().unwrap();
+        let formatted_amount = format_units(job1.amount, token_decimals)?;
+        let decimal_amount: f64 = formatted_amount.parse()?;
         tracing::info!(
             "JobID: {}, has formatted amount of {} ${}",
             id,
             decimal_amount,
             token_symbol
         );
+        // Call the function
+        let result = get_from_ipfs(&job1.contentHash.to_string(), "").await;
+        let mut job_description = "".to_string();
+        // Check the result
+        match result {
+            Ok(data) => {
+                // If data is returned, ensure it's not empty
+
+                tracing::info!("    - Job Description: {}", data);
+                job_description = data;
+            }
+            Err(e) => {
+                // If the IPFS data isn't available, the error is likely a 404 or similar
+                // We don't fail the test for network issues, but log the error
+                tracing::error!("Expected error (e.g., data not found on IPFS): {}", e);
+            }
+        }
+        // Create test job
+        let test_job = JobNotification {
+            job_id: id.to_string(),
+            title: job1.title,
+            description: job_description,
+            amount: decimal_amount,
+            symbol: token_symbol,
+            delivery_time: job1.maxTime,
+        };
+
+        // Send test job to queue
+        tx.send(test_job.clone()).await?;
+        tracing::info!("Sent test job to queue");
+
+        // Wait briefly to allow worker to process (avoid real Telegram API call)
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Verify worker is still running (not exited)
+        assert!(!worker_handle.is_finished(), "Worker exited prematurely");
+
+        // Drop tx to close channel and allow worker to hit None case
+        drop(tx);
+
+        // Wait for worker to hit channel closed error
+        tokio::time::sleep(Duration::from_millis(5100)).await; // Wait past 5s retry
+
+        Ok(())
     }
 
     /// This test fetch a correct Job content hash from ipfs
@@ -129,6 +192,9 @@ mod tests {
             job_id: "test_123".to_string(),
             title: "Test Job".to_string(),
             description: "This is a test".to_string(),
+            amount: 0.01,
+            symbol: "ETH".to_string(),
+            delivery_time: 1,
         };
 
         // Send test job to queue

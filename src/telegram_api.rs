@@ -9,6 +9,9 @@ pub struct JobNotification {
     pub job_id: String,
     pub title: String,
     pub description: String,
+    pub amount: f64,
+    pub symbol: String,
+    pub delivery_time: u32,
 }
 
 // Send notification to Telegram
@@ -20,8 +23,12 @@ async fn send_telegram_notification(
     chat_id: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let message = format!(
-        "New Job: #{}\n Title: {} \n Description: {}\n",
-        notification.job_id, notification.title, notification.description
+        "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'>{}</a>\n<b>Job Description</b>:\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
+        notification.job_id,
+        notification.title,
+        notification.description,
+        notification.amount,
+        notification.symbol
     );
     let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
     let response = client
