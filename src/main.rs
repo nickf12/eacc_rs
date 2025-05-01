@@ -26,8 +26,8 @@ async fn main() -> Result<(), Error> {
     tokio::spawn(notification_worker(
         rx,
         "7675454109:AAHWGRpyKT_I8mNpFQIsQ9q45lD_T7Hg0pw".to_string(),
-        "5967208142".to_string(), // ""telegram_chat_id.to_string(),
-                                  // twitter_credentials.clone(),
+        "@EACC_New_Jobs".to_string(), // ""telegram_chat_id.to_string(),
+                                      // twitter_credentials.clone(),
     ));
 
     // Spawn event fetching task
