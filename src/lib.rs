@@ -1,7 +1,8 @@
+use alloy::primitives::utils::format_units;
 use alloy::{
     consensus::Transaction,
     hex::{self},
-    primitives::address,
+    primitives::{address, U256},
     providers::Provider,
     sol,
 };
@@ -122,6 +123,19 @@ pub async fn get_from_ipfs(
     Ok(decrypted_data)
 }
 
+// // Assuming amount is a U256 and decimals is 18
+// fn format_token_amount(amount: U256, decimals: u32) -> String {
+//     // Convert U256 to f64 by dividing by 10^decimals
+//     let divisor = U256::from(10).pow(U256::from(decimals));
+//     // let amount_f64 = amount.as_u128() as f64 / divisor.as_u128() as f64;
+
+//     // // Format with up to 6 decimal places, trimming trailing zeros
+//     // format!("{:.6}", amount_f64)
+//     //     .trim_end_matches('0')
+//     //     .trim_end_matches('.')
+//     //     .to_string()
+// }
+
 // TODO: Improve timeout/error handling/api
 #[tracing::instrument(name = "filter_publish_job_events", skip(provider))]
 pub async fn filter_publish_job_events(
@@ -184,12 +198,14 @@ pub async fn filter_publish_job_events(
                                 let job = marketplace_data.getJob(event.jobId).call().await?._0;
                                 let token_contract = IERC20::new(job.token, provider.clone());
                                 let token_symbol = token_contract.symbol().call().await?._0;
-
+                                let token_decimals = token_contract.decimals().call().await?._0;
+                                let formatted_amount = format_units(job.amount, token_decimals)?;
+                                let decimal_amount: f64 = formatted_amount.parse().unwrap();
                                 tracing::info!("    - Job Title: {}", job.title);
                                 // TODO: Fix amount conversion!
                                 tracing::info!(
                                     "    - Job Amount: {} ${}",
-                                    job.amount,
+                                    decimal_amount,
                                     token_symbol
                                 );
                                 tracing::info!("    - Job deliveryMethod: {}", job.deliveryMethod);
