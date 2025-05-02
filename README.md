@@ -56,3 +56,8 @@ docker run --env-file .env eacc_rs:latest
 cargo test
 ```
 
+MIT License
+
+Copyright (c) 2025 Pecu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
