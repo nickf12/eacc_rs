@@ -2,7 +2,7 @@ use alloy::primitives::utils::format_units;
 use alloy::{
     consensus::Transaction,
     hex::{self},
-    primitives::{address, U256},
+    primitives::address,
     providers::Provider,
     sol,
 };
