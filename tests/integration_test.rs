@@ -37,18 +37,23 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
+    use dotenvy::dotenv;
+    use std::env;
 
     /// This test fetch a correct Job content hash from ipfs
     #[tokio::test]
     async fn test_contract() -> Result<(), Error> {
         init_test_tracing(); // Safe to call multiple times due to Once
                              // Create ws provider
+        dotenv().ok(); // Loads variables from .env into the process
 
         tracing::info!("Test started");
 
-        // Mock Telegram credentials (chat_id is empty to trigger error, as in your main)
-        let telegram_bot_token = "7675454109:AAHWGRpyKT_I8mNpFQIsQ9q45lD_T7Hg0pw".to_string();
-        let telegram_chat_id = "@EACC_New_Jobs".to_string(); // Simulates your empty chat_id
+        let telegram_bot_token =
+            env::var("TELEGRAM_API").expect("TG API not set in environment variables");
+
+        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG CHAT_ID not set in env variables");
+        let rpc_api = env::var("RPC_API").expect("RPC API not set in environment variables");
 
         // Create mpsc channel
         let (tx, rx) = mpsc::channel::<JobNotification>(100);
@@ -60,9 +65,10 @@ mod tests {
             telegram_chat_id,
         ));
 
-        let ws = WsConnect::new(
-            "wss://arbitrum-mainnet.infura.io/ws/v3/a4921b52d671477e8622579c84ecf959",
-        );
+        let ws = WsConnect::new(format!(
+            "wss://arbitrum-mainnet.infura.io/ws/v3/{}",
+            rpc_api
+        ));
         let provider = ProviderBuilder::new().on_ws(ws).await.unwrap();
 
         let marketplace_data = MarketPlaceData::new(
@@ -165,16 +171,17 @@ mod tests {
 
     /// This test the notification worker
     #[tokio::test]
-    async fn test_notification_worker() -> Result<(), Error> {
+    async fn test_notification_worker_mock_data() -> Result<(), Error> {
         use std::time::Duration;
 
         // Set up tracing subscriber
         init_test_tracing(); // Safe to call multiple times due to Once
         tracing::info!("Test started");
 
-        // Mock Telegram credentials (chat_id is empty to trigger error, as in your main)
-        let telegram_bot_token = "7675454109:AAHWGRpyKT_I8mNpFQIsQ9q45lD_T7Hg0pw".to_string();
-        let telegram_chat_id = "@EACC_New_Jobs".to_string(); // Simulates your empty chat_id
+        let telegram_bot_token =
+            env::var("TELEGRAM_API").expect("TG API not set in environment variables");
+
+        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG CHAT_ID not set in env variables");
 
         // Create mpsc channel
         let (tx, rx) = mpsc::channel::<JobNotification>(100);
