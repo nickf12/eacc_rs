@@ -12,6 +12,7 @@ use cid::Cid;
 use eyre::Result;
 use futures::stream::StreamExt;
 use reqwest::ClientBuilder;
+use std::env;
 use std::{error::Error, time::Duration};
 use telegram_api::JobNotification;
 use tokio::sync::mpsc;
@@ -85,7 +86,8 @@ async fn get_from_ipfs_raw(
         .build()?;
 
     // Use local IPFS gateway
-    let gateway = "https://ipfs.effectiveacceleration.ai/ipfs/";
+    let gateway =
+        env::var("IPFS_GATEWAY").expect("IPFS Gateway not set in the environment variables");
     let url = format!("{}{}", gateway, cid);
 
     let response = client.get(&url).send().await?;

@@ -10,7 +10,6 @@
 - **Real-Time Monitoring**: Listens for job events on Arbitrum via Infura WebSocket.
 - **Telegram Notifications**: Sends formatted job details (title, description, CID, amount in $AIUS) to `@EACC_New_Jobs`.
 - **Dockerized Deployment**: Packaged as a lightweight Docker container for consistent deployment.
-- **Automated CI/CD**: GitHub Actions pipeline for testing, building, and deploying Docker images.
 - **Robust Testing**: Integration tests for IPFS data fetching and notification logic.
 
 ## Prerequisites
