@@ -47,12 +47,16 @@ cargo run
 - Docker
 ```bash
 docker build -t eacc_rs:latest .
-docker run --env-file .env eacc_rs:latest
+docker run -p 3000:3000 --env-file .env eacc_rs:latest
 ```
 
 ### Testing
 ```bash
 cargo test
+```
+### Testing app health
+```bash
+curl http://0.0.0.0:3000/health
 ```
 
 MIT License
