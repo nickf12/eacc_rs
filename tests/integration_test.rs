@@ -27,14 +27,17 @@ mod tests {
         primitives::{address, ruint::aliases::U256, utils::format_units},
         providers::{ProviderBuilder, WsConnect},
     };
+    use axum::{routing::get, Router};
     // use alloy::primitives::utils::format_units;
     use eacc_rs::{
-        get_from_ipfs,
+        get_from_ipfs, health_check,
         telegram_api::{notification_worker, JobNotification},
         MarketPlaceData, IERC20,
     };
     use eyre::{Error, Result};
+    use http::StatusCode;
     use tokio::sync::mpsc;
+    use tracing_test::traced_test;
 
     use super::*;
     use dotenvy::dotenv;
@@ -219,5 +222,30 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(5100)).await; // Wait past 5s retry
 
         Ok(())
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn test_health_endpoint() {
+        init_test_tracing();
+        let app = Router::new().route("/health", get(health_check));
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
+        //let local_addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            tracing::info!("Serving the server");
+            if let Err(e) = axum::serve(listener, app).await {
+                tracing::error!("health check server failed: {}", e)
+            }
+        });
+        let client = reqwest::Client::new();
+        let response = client
+            .get("http://0.0.0.0:3000/health")
+            .send()
+            .await
+            .unwrap();
+        tracing::info!("Response status: {}", response.status().as_str());
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.text().await.unwrap(), "OK");
     }
 }
