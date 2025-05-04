@@ -77,7 +77,7 @@ async fn get_from_ipfs_raw(
     };
 
     let cid = Cid::try_from(cid_str)?;
-    tracing::info!("Generated CID: {}", cid);
+    tracing::debug!("Generated CID: {}", cid);
 
     // Create reqwest client with timeout
     let client = ClientBuilder::new()
@@ -96,7 +96,7 @@ async fn get_from_ipfs_raw(
         BASE64
             .decode(&data)
             .map_err(|e| format!("Response is not valid Base64: {}", e))?;
-        tracing::info!("Fetched from: {}", url);
+        tracing::debug!("Fetched from: {}", url);
         Ok(data)
     } else {
         Err(format!("Failed to fetch from {}: {}", url, response.status()).into())
