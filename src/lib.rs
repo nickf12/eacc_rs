@@ -6,6 +6,7 @@ use alloy::{
     providers::Provider,
     sol,
 };
+use axum::{routing::get, Router};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use cid::multihash::Multihash;
 use cid::Cid;
@@ -42,6 +43,12 @@ sol!(
     IERC20,
     "./src/abis/IERC20.json"
 );
+
+// Healt check
+#[tracing::instrument(name = "health_check")]
+pub async fn health_check() -> &'static str {
+    "OK"
+}
 
 // Placeholder decryption for UTF-8 data
 fn decrypt_utf8_data(
