@@ -20,4 +20,5 @@ RUN apt-get update -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/eacc_rs eacc_rs
+EXPOSE 3000
 ENTRYPOINT [ "./eacc_rs" ]
