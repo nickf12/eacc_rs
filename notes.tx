@@ -1,0 +1,70 @@
+Tx hash -> 0x86e7d2bf8a8c093ad5c4a6f1c43b34deb0e8ffe43499552732804277a648cc36
+Event Details:
+- Job ID: 527
+- Emitting Function: publishJobEvent(uint256,(uint8,bytes,bytes,uint32))
+- Tx Hash: 0x86e7d2bf8a8c093ad5c4a6f1c43b34deb0e8ffe43499552732804277a648cc36
+- MethodID: [3a, 8, 8, 39]
+Handling publishJobEvent...
+Event Data: JobEventData { type_: 0, address_: 0x865955e44efa08c54b5dc43b4d4f024280aade9a, data_: 0x1154657374696e672061636869657665643f676b73b7e3c115ca44154e2a8a9b613b0fa8ec68bc72f9509a188e749bab120801010244564a24b101728e07a52053c13fb4db2bcf490cabc300000000000000000000000000000000000000000000000000005af3107a4000000151800469706673000000000000000000000000000000000000000000, timestamp_: 1745947409 }
+    - Job Title: Testing achieved?
+    - Job Amount: 100000000000000 $AIUS
+    - Job deliveryMethod: ipfs
+    - Job contentHash: 0x676b73b7e3c115ca44154e2a8a9b613b0fa8ec68bc72f9509a188e749bab1208
+Generated CID: QmVJMjVphtKKZUajQSEYLf2dtuwVJKhLZDyAm856jVBbZq
+Fetched from: https://ipfs.effectiveacceleration.ai/ipfs/QmVJMjVphtKKZUajQSEYLf2dtuwVJKhLZDyAm856jVBbZq
+Placeholder UTF-8 decryption: key=
+    - Job Description: Did we made it? ahah
+
+
+{
+    "message": {
+        "chat": {
+            "first_name": "Pecu",
+            "id": 5967208142,
+            "type": "private",
+            "username": "Pecunians"
+        },
+        "date": 1746089818,
+        "entities": [
+            {
+                "length": 6,
+                "offset": 0,
+                "type": "bot_command"
+            }
+        ],
+        "forward_date": 1746089571,
+        "forward_from_chat": {
+            "id": -1002601973762,
+            "title": "EACC_New_Jobs",
+            "type": "channel",
+            "username": "EACC_New_Jobs"
+        },
+        "forward_from_message_id": 2,
+        "forward_origin": {
+            "chat": {
+                "id": -1002601973762,
+                "title": "EACC_New_Jobs",
+                "type": "channel",
+                "username": "EACC_New_Jobs"
+            },
+            "date": 1746089571,
+            "message_id": 2,
+            "type": "channel"
+        },
+        "from": {
+            "first_name": "Pecu",
+            "id": 5967208142,
+            "is_bot": false,
+            "is_premium": true,
+            "language_code": "en",
+            "username": "Pecunians"
+        },
+        "message_id": 16559,
+        "text": "/start"
+    },
+    "update_id": 808323770
+}
+
+// Constants MArketplaceDataV1
+// const MARKETPLACEDATA_CONRTACT: &str = "0x0191ae69d05F11C7978cCCa2DE15653BaB509d9a";
+// const MARKETPLACE_CONRTACT: &str = "0x405AcFbD1400A168fDd4aDA2D214e8Ae5FF7a624";

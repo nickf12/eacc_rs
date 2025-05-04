@@ -167,12 +167,12 @@ pub async fn filter_publish_job_events(
                             _ => format!("Unknown function (selector: {:x?})", function_selector),
                         };
 
-                        tracing::info!("Event Details:");
-                        tracing::info!("- Job ID: {:?}", event.jobId); // Assuming jobId exists in your event
+                        tracing::debug!("Event Details:");
+                        tracing::debug!("- Job ID: {:?}", event.jobId); // Assuming jobId exists in your event
 
-                        tracing::info!("- Emitting Function: {}", function_signature);
-                        tracing::info!("- Tx Hash: {:?}", tx_hash);
-                        tracing::info!("- MethodID: {:x?}", function_selector);
+                        tracing::debug!("- Emitting Function: {}", function_signature);
+                        tracing::debug!("- Tx Hash: {:?}", tx_hash);
+                        tracing::debug!("- MethodID: {:x?}", function_selector);
                         let event_data = event.eventData;
                         //let data = event_data.data_;
                         // Example condition based on the function
@@ -180,7 +180,7 @@ pub async fn filter_publish_job_events(
                             "publishJobEvent(uint256,(uint8,bytes,bytes,uint32))" => {
                                 tracing::info!("Handling publishJobEvent...");
                                 // Access event data
-                                tracing::info!("Event Data: {:?}", event_data);
+                                tracing::debug!("Event Data: {:?}", event_data);
                                 // Get The JobPost data
                                 let job = marketplace_data.getJob(event.jobId).call().await?._0;
                                 let token_contract = IERC20::new(job.token, provider.clone());
@@ -195,8 +195,8 @@ pub async fn filter_publish_job_events(
                                     decimal_amount,
                                     token_symbol
                                 );
-                                tracing::info!("    - Job deliveryMethod: {}", job.deliveryMethod);
-                                tracing::info!("    - Job contentHash: {}", job.contentHash);
+                                tracing::debug!("    - Job deliveryMethod: {}", job.deliveryMethod);
+                                tracing::debug!("    - Job contentHash: {}", job.contentHash);
                                 // Get content from IPFS
                                 // Call the function
                                 let result = get_from_ipfs(&job.contentHash.to_string(), "").await;
@@ -206,7 +206,7 @@ pub async fn filter_publish_job_events(
                                     Ok(data) => {
                                         // If data is returned, ensure it's not empty
 
-                                        tracing::info!("    - Job Description: {}", data);
+                                        tracing::debug!("    - Job Description: {}", data);
                                         job_description = data;
                                     }
                                     Err(e) => {

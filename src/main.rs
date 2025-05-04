@@ -39,7 +39,7 @@ async fn main() -> Result<(), Error> {
     // Spawn event fetching task
     tokio::spawn(filter_publish_job_events(provider, tx));
 
-    // TODO: Enhance below logic for shut down and reruns
+    // TODO: Enhance below logic for shut down and retries
     // Wait for Ctrl+C to exit
     tokio::signal::ctrl_c().await?;
     tracing::info!("Received Ctrl+C, shutting down");
