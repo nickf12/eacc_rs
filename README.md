@@ -49,6 +49,10 @@ cargo run
 docker build -t eacc_rs:latest .
 docker run -p 3000:3000 --env-file .env eacc_rs:latest
 ```
+- Docker-compose
+```bash
+docker-compose up
+```
 
 ### Testing
 ```bash
