@@ -6,7 +6,6 @@ use alloy::{
     providers::Provider,
     sol,
 };
-use axum::{routing::get, Router};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use cid::multihash::Multihash;
 use cid::Cid;
@@ -20,6 +19,7 @@ use tokio::sync::mpsc;
 
 pub mod telegram_api;
 pub mod telemetry;
+
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
@@ -28,13 +28,14 @@ sol!(
     "./src/abis/MarketplaceData.json"
 );
 
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    #[derive(Debug)]
-    MarketPlace,
-    "./src/abis/Marketplace.json"
-);
+// Not needed for the moment.
+// sol!(
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     #[derive(Debug)]
+//     MarketPlace,
+//     "./src/abis/Marketplace.json"
+// );
 
 sol!(
     #[allow(missing_docs)]
@@ -193,8 +194,16 @@ pub async fn filter_publish_job_events(
                                 // Get The JobPost data
                                 let job = marketplace_data.getJob(event.jobId).call().await?._0;
                                 let token_contract = IERC20::new(job.token, provider.clone());
-                                let token_symbol = token_contract.symbol().call().await?._0;
-                                let token_decimals = token_contract.decimals().call().await?._0;
+
+                                // Use multicall when possible to reduce amount of requests to public RPC
+                                let multicall = provider
+                                    .multicall()
+                                    .add(token_contract.symbol())
+                                    .add(token_contract.decimals());
+                                let (token_symbol, token_decimals) = multicall.aggregate().await?;
+                                let token_symbol = token_symbol._0;
+
+                                let token_decimals = token_decimals._0;
                                 let formatted_amount = format_units(job.amount, token_decimals)?;
                                 let decimal_amount: f64 = formatted_amount.parse().unwrap();
                                 tracing::info!("    - Job Title: {}", job.title);
