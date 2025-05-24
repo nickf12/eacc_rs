@@ -7,18 +7,19 @@ use eacc_rs::telemetry::{get_subscriber, init_subscriber};
 use eacc_rs::{filter_publish_job_events, health_check};
 use eyre::{Error, Result};
 use std::env;
+use tokio::signal;
 use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // TODO: Create env variables
-    // TODO: Write logs to files
     tracing::info!("Hello world");
-    dotenv().ok(); // Loads variables from .env into the process
+    // Loads variables from .env into the process
+    dotenv().ok();
     let rpc_api = env::var("RPC_API").expect("RPC_API not set");
     let tg_api = env::var("TELEGRAM_BOT_API").expect("TELEGRAM_BOT_API not set");
     let tg_chat = env::var("TG_CHAT_ID").expect("TG_CHAT_ID not set");
 
+    // Instantiate server
     let app: Router = Router::new().route("/health", get(health_check));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -43,15 +44,29 @@ async fn main() -> Result<(), Error> {
     // Create mpsc queue
     let (tx, rx) = mpsc::channel::<JobNotification>(100);
 
+    //    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
+
     // Spawn notification worker task
-    tokio::spawn(notification_worker(rx, tg_api, tg_chat));
+    tokio::spawn({
+        // let mut shutdown_rx = shutdown_tx.subscribe();
+
+        notification_worker(rx, tg_api, tg_chat)
+    });
 
     // Spawn event fetching task
     tokio::spawn(filter_publish_job_events(provider, tx));
 
-    // TODO: Enhance below logic for shut down and retries
     // Wait for Ctrl+C to exit
-    tokio::signal::ctrl_c().await?;
-    tracing::info!("Received Ctrl+C, shutting down");
+    match signal::ctrl_c().await {
+        Ok(()) => {
+            tracing::info!("Shut down signal received")
+            // TODO: implement graceful shutdown
+        }
+        Err(err) => {
+            eprintln!("Unable to listen for shutdown signal: {}", err);
+            // we also shut down in case of error
+        }
+    }
+
     Ok(())
 }

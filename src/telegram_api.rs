@@ -65,7 +65,7 @@ pub async fn notification_worker(
     telegram_bot_token: String,
     telegram_chat_id: String,
     // twitter_credentials: TwitterCredentials,
-) {
+) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let client = Client::new();
     while let Some(notification) = rx.recv().await {
         // Send to Telegram
@@ -78,8 +78,6 @@ pub async fn notification_worker(
         .await
         {
             tracing::error!("Failed to send Telegram notification: {}", e);
-        } else {
-            continue;
         }
         // TODO: ADD twitter and other socials to push notifications
         // Send to Twitter
@@ -89,4 +87,5 @@ pub async fn notification_worker(
         //     eprintln!("Failed to send Twitter notification: {}", e);
         // }
     }
+    Ok(())
 }
