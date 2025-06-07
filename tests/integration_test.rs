@@ -55,7 +55,7 @@ mod tests {
         let telegram_bot_token =
             env::var("TELEGRAM_BOT_API").expect("TG API not set in environment variables");
 
-        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG CHAT_ID not set in env variables");
+        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG_CHAT_ID not set in env variables");
         let rpc_api = env::var("RPC_API").expect("RPC API not set in environment variables");
 
         // Create mpsc channel
@@ -184,7 +184,7 @@ mod tests {
         let telegram_bot_token =
             env::var("TELEGRAM_BOT_API").expect("TG API not set in environment variables");
 
-        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG CHAT_ID not set in env variables");
+        let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG_CHAT_ID not set in env variables");
 
         // Create mpsc channel
         let (tx, rx) = mpsc::channel::<JobNotification>(100);
