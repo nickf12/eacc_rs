@@ -23,7 +23,7 @@
 
 ### Clone the Repository
 ```bash
-git clone https://github.com/yourusername/eacc_rs.git
+git clone https://github.com/nickf12/eacc_rs.git
 cd eacc_rs
 ```
 

@@ -22,7 +22,7 @@ async fn send_telegram_notification(
     chat_id: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let message = format!(
-        "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'> {} </a>\n<b>Job Description</b>:\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
+        "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'>{}</a>\n<b>Job Description</b>:\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
         notification.job_id,
         notification.title,
         notification.description,
