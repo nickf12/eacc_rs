@@ -4,13 +4,13 @@ FROM rust:1.86.0 AS builder
 WORKDIR /app
 RUN apt update && apt install lld clang -y
 COPY . .
-ENV SQLX_OFFLINE=true
+# ENV SQLX_OFFLINE=true
 RUN cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-# Install OpenSSL - it is dynamically linked by some of our dependencies
+# Install OpenSSL - it is  dynamicallylinked by some of our dependencies
 # Install ca-certificates - it is needed to verify TLS certificates
 # when establishing HTTPS connections
 RUN apt-get update -y \
