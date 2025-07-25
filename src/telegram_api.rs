@@ -1,17 +1,8 @@
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::error::Error;
+use std::env;
 use tokio::sync::mpsc;
 
-// Job notification struct
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct JobNotification {
-    pub job_id: String,
-    pub title: String,
-    pub description: String,
-    pub amount: f64,
-    pub symbol: String,
-}
+use crate::{error::AppError, JobNotification};
 
 // Send notification to Telegram
 #[tracing::instrument(name = "send_telegram_notification", skip(client, bot_token))]
@@ -20,7 +11,7 @@ async fn send_telegram_notification(
     notification: &JobNotification,
     bot_token: &str,
     chat_id: &str,
-) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+) -> Result<(), AppError> {
     let message = format!(
         "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'>{}</a>\n<b>Job Description</b>:\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
         notification.job_id,
@@ -47,30 +38,24 @@ async fn send_telegram_notification(
         let resp_status = response.status();
         let error_text = response.text().await.unwrap_or_default();
 
-        Err(format!(
+        Err(AppError::TelegramApi(format!(
             "Telegram API error: status: {}, text: {}",
             resp_status, error_text
-        )
-        .into())
+        )))
     }
 }
 
 // Notification worker
-#[tracing::instrument(
-    name = "notification_worker",
-    skip(rx, telegram_bot_token, telegram_chat_id)
-)]
-pub async fn notification_worker(
-    mut rx: mpsc::Receiver<JobNotification>,
-    telegram_bot_token: String,
-    telegram_chat_id: String,
-    // twitter_credentials: TwitterCredentials,
-) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let client = Client::new();
+#[tracing::instrument(name = "telegram_worker", skip(rx))]
+pub async fn telegram_worker(mut rx: mpsc::Receiver<JobNotification>) -> Result<(), AppError> {
+    let tg_client = Client::new();
+    let telegram_bot_token = env::var("TELEGRAM_BOT_API").expect("TELEGRAM_BOT_API not set");
+    let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG_CHAT_ID not set");
+
     while let Some(notification) = rx.recv().await {
         // Send to Telegram
         if let Err(e) = send_telegram_notification(
-            &client,
+            &tg_client,
             &notification,
             &telegram_bot_token,
             &telegram_chat_id,
@@ -79,13 +64,7 @@ pub async fn notification_worker(
         {
             tracing::error!("Failed to send Telegram notification: {}", e);
         }
-        // TODO: ADD twitter and other socials to push notifications
-        // Send to Twitter
-        // if let Err(e) =
-        //     send_twitter_notification(&client, &notification, &twitter_credentials).await
-        // {
-        //     eprintln!("Failed to send Twitter notification: {}", e);
-        // }
+        tracing::info!("Notification processed in telegram: {:?}", notification);
     }
     Ok(())
 }
