@@ -55,8 +55,8 @@ mod tests {
         let (twitter_tx, twitter_rx) = mpsc::channel::<JobNotification>(100);
 
         // Platform-specific workers
-        tokio::spawn(telegram_worker(telegram_rx));
-        tokio::spawn(x_worker(twitter_rx));
+        let telegram_handle = tokio::spawn(telegram_worker(telegram_rx));
+        let x_handle = tokio::spawn(x_worker(twitter_rx));
 
         let ws = WsConnect::new(format!(
             "wss://arbitrum-mainnet.infura.io/ws/v3/{}",
@@ -122,10 +122,16 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Verify worker is still running (not exited)
-        // assert!(!worker_handle.is_finished(), "Worker exited prematurely");
+        assert!(!telegram_handle.is_finished(), "Worker exited prematurely");
 
         // Drop tx to close channel and allow worker to hit None case
-        // drop(tx);
+        drop(telegram_tx);
+
+        // Verify worker is still running (not exited)
+        assert!(!x_handle.is_finished(), "Worker exited prematurely");
+
+        // Drop tx to close channel and allow worker to hit None case
+        drop(twitter_tx);
 
         // Wait for worker to hit channel closed error
         tokio::time::sleep(Duration::from_millis(5100)).await; // Wait past 5s retry
