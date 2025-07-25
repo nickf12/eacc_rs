@@ -1,3 +1,5 @@
 /target
 .env
 .notes.txt
+/bin
+Cargo.lock
