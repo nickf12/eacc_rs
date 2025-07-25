@@ -43,22 +43,13 @@ mod tests {
     #[tokio::test]
     async fn test_contract() -> Result<(), Error> {
         init_test_tracing();
-        // Safe to call multiple times due to Once
-        // Create ws provider
+
         dotenv().ok(); // Loads variables from .env into the process
 
         tracing::info!("Test started");
 
-        // let telegram_bot_token =
-        //     env::var("TELEGRAM_BOT_API").expect("TG API not set in environment variables");
-
-        // let telegram_chat_id = env::var("TG_CHAT_ID").expect("TG_CHAT_ID not set in env variables");
         let rpc_api = env::var("RPC_API").expect("RPC API not set in environment variables");
 
-        // Create mpsc channel
-        // let (tx, rx) = mpsc::channel::<JobNotification>(100);
-
-        // Spawn notification worker
         // Create platform-specific notification queues
         let (telegram_tx, telegram_rx) = mpsc::channel::<JobNotification>(100);
         let (twitter_tx, twitter_rx) = mpsc::channel::<JobNotification>(100);
