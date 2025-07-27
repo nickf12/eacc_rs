@@ -87,6 +87,8 @@ pub async fn get_from_ipfs(content_hash: &str, session_key: &str) -> Result<Stri
 
     // Decrypt to UTF-8
     let decrypted_data = decrypt_utf8_data(&decoded_data, session_key);
+    let cleaned = decrypted_data.trim_matches('\0').trim().to_string();
 
-    Ok(decrypted_data)
+    tracing::info!("Cleaned job description: {}", cleaned);
+    Ok(cleaned)
 }
