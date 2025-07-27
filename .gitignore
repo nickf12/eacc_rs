@@ -2,4 +2,4 @@
 .env
 .notes.txt
 
-Cargo.lock
+/bin
