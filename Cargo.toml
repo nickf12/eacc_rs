@@ -28,7 +28,7 @@ tracing-log = "0.2"
 # tracing-actix-web = "0.7"
 # teloxide = { version = "0.15.0", features = ["macros"] }
 dotenvy = "0.15"
-# actix-web = "4.11.0"
+actix-web = "4.11.0"
 thiserror = "2.0.12"
 url = "2.5.4"
 twitter-api-v1 = "0.2.1"
