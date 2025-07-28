@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ret = create_tweet(
         &token_secrets,
         client,
-        Some("Hello world, this is my first post on X from a Rust application!"),
+        Some("Testing X API with image upload"),
         Some(vec![media_id]),
         None,
     )
@@ -86,6 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match ret {
         EndpointRet::Ok(ok_json) => {
             println!("create_tweet:{ok_json:?}");
+            let _tweet_id = ok_json.id;
         }
         _x => panic!("{_x:?}"),
     };
