@@ -13,10 +13,10 @@ async fn send_telegram_notification(
     chat_id: &str,
 ) -> Result<(), AppError> {
     let message = format!(
-        "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'>{}</a>\n<b>Job Description</b>:\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
+        "<b>A new job has been published in EACC</b>\n\n\n<b>Title</b>:<a href='https://staging.effectiveacceleration.ai/dashboard/jobs/{}'>{}</a>\n<b>Job Description:</b>\n{}\n\n<b>Job Reward</b>: {} ${}\n\n",
         notification.job_id,
         notification.title,
-        notification.description,
+        notification.description.trim(),
         notification.amount,
         notification.symbol
     );
