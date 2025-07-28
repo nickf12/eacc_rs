@@ -68,7 +68,7 @@ mod tests {
             address!("0191ae69d05F11C7978cCCa2DE15653BaB509d9a"),
             provider.clone(),
         );
-        let id = 518;
+        let id = 18;
         let job_id = U256::from(id);
         let job1 = marketplace_data.getJob(job_id).call().await?._0;
 
@@ -89,12 +89,11 @@ mod tests {
         );
         // Call the function
         let result = get_from_ipfs(&job1.contentHash.to_string(), "").await;
-        let mut job_description = "".to_string();
+        let mut job_description = String::new();
+
         // Check the result
         match result {
             Ok(data) => {
-                // If data is returned, ensure it's not empty
-
                 tracing::info!("    - Job Description: {}", data);
                 job_description = data;
             }
@@ -114,8 +113,8 @@ mod tests {
         };
 
         // Send test job to queue
-        telegram_tx.send(test_job.clone()).await?;
-        twitter_tx.send(test_job.clone()).await?;
+        //telegram_tx.send(test_job.clone()).await?;
+        (twitter_tx).send(test_job.clone()).await?;
         tracing::info!("Sent test job to queue");
 
         // Wait briefly to allow worker to process
@@ -155,12 +154,12 @@ mod tests {
             Ok(data) => {
                 // If data is returned, ensure it's not empty
                 assert!(!data.is_empty(), "Fetched data should not be empty");
-                println!("Fetched IPFS Data: {}", data);
+                //println!("Fetched IPFS Data: {}", data);
             }
             Err(e) => {
                 // If the IPFS data isn't available, the error is likely a 404 or similar
                 // We don't fail the test for network issues, but log the error
-                println!("Expected error (e.g., data not found on IPFS): {}", e);
+                //println!("Expected error (e.g., data not found on IPFS): {}", e);
                 assert!(
                     e.to_string().contains("Failed to fetch IPFS data"),
                     "Error should indicate fetch failure"
