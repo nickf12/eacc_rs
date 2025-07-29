@@ -68,7 +68,7 @@ mod tests {
             address!("0191ae69d05F11C7978cCCa2DE15653BaB509d9a"),
             provider.clone(),
         );
-        let id = 18;
+        let id = 517;
         let job_id = U256::from(id);
         let job1 = marketplace_data.getJob(job_id).call().await?._0;
 
@@ -113,7 +113,7 @@ mod tests {
         };
 
         // Send test job to queue
-        //telegram_tx.send(test_job.clone()).await?;
+        telegram_tx.send(test_job.clone()).await?;
         (twitter_tx).send(test_job.clone()).await?;
         tracing::info!("Sent test job to queue");
 
