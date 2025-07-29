@@ -32,8 +32,22 @@ actix-web = "4.11.0"
 thiserror = "2.0.12"
 url = "2.5.4"
 twitter-api-v1 = "0.2.1"
+uuid = "1.17.0"
 # oauth1-twitter = "0.2.1"
 # twitter-v2 = "0.1.8"  
+
+[dependencies.sqlx]
+version = "0.5.7"
+default-features = false
+features = [
+    "runtime-actix-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate"
+]
+
 
 [lib]
 path = "src/lib.rs"
