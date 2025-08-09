@@ -5,12 +5,13 @@ use eyre::Result;
 use futures::stream::StreamExt;
 use serde::Serialize;
 use tokio::sync::mpsc;
+use utils::get_from_ipfs;
+
 pub mod error;
 pub mod telegram_api;
 pub mod telemetry;
 pub mod utils;
 pub mod x_api;
-use utils::get_from_ipfs;
 
 sol!(
     #[allow(missing_docs)]
@@ -112,7 +113,7 @@ pub async fn filter_publish_job_events(
                                 let formatted_amount = format_units(job.amount, token_decimals)?;
                                 let decimal_amount: f64 = formatted_amount.parse().unwrap();
                                 tracing::debug!("    - Job Title: {}", job.title);
-                                // TODO: Fix amount conversion!
+
                                 tracing::debug!(
                                     "    - Job Amount: {} ${}",
                                     decimal_amount,
@@ -120,6 +121,7 @@ pub async fn filter_publish_job_events(
                                 );
                                 tracing::debug!("    - Job deliveryMethod: {}", job.deliveryMethod);
                                 tracing::debug!("    - Job contentHash: {}", job.contentHash);
+
                                 // Get content from IPFS
                                 // Call the function
                                 let job_description =

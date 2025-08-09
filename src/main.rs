@@ -15,9 +15,10 @@ async fn main() -> Result<()> {
     // Loads variables from .env into the process
     dotenv().ok();
     let rpc_api = env::var("RPC_API").expect("RPC_API not set");
+    let log_level = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
 
     // REDIRECT ALL 'LOG'S EVENTS TO OUR SUBSCRIVER
-    let subscriber = get_subscriber("eacc_rs".into(), "info".into(), std::io::stdout);
+    let subscriber = get_subscriber("eacc_rs".into(), log_level, std::io::stdout);
     init_subscriber(subscriber);
 
     // Create ws provider
