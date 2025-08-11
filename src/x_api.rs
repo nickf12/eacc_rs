@@ -21,11 +21,8 @@ async fn send_x_notification(
     media_id: u64,
 ) -> Result<u64, AppError> {
     let message = format!(
-        "Title: {}\nReward: {} ${}\nDetails: https://staging.effectiveacceleration.ai/dashboard/jobs/{}",
-        notification.title,
-        notification.amount,
-        notification.symbol,
-        notification.job_id
+        "Title: {}\nReward: {} ${}\nDetails: effectiveacceleration.ai/dashboard/jobs/{}",
+        notification.title, notification.amount, notification.symbol, notification.job_id
     );
 
     let ret = create_tweet(
@@ -76,12 +73,17 @@ pub async fn x_upload_image(
 
 #[tracing::instrument(name = "x_worker", skip(rx))]
 pub async fn x_worker(mut rx: mpsc::Receiver<JobNotification>) -> Result<(), AppError> {
+    tracing::debug!("x_worker started, loading env variables...");
     let consumer_key = env::var("X_API_KEY").expect("X_API_KEY not found in .env file");
+    tracing::debug!("Loaded X_API_KEY: {:?}", consumer_key);
     let consumer_secret =
         env::var("X_API_KEY_SECRET").expect("X_API_KEY_SECRET not found in .env file");
+    tracing::debug!("Loaded X_API_KEY_SECRET: {:?}", consumer_secret);
     let access_token = env::var("X_ACCESS_TOKEN").expect("ACCESS_TOKEN not found in .env file");
+    tracing::debug!("Loaded X_ACCESS_TOKEN: {:?}", access_token);
     let access_token_secret =
         env::var("X_ACCESS_TOKEN_SECRET").expect("ACCESS_TOKEN_SECRET not found in .env file");
+    tracing::debug!("Loaded X_ACCESS_TOKEN_SECRET {}", access_token_secret);
 
     let token_secrets = TokenSecrets::new(
         consumer_key,
@@ -89,10 +91,13 @@ pub async fn x_worker(mut rx: mpsc::Receiver<JobNotification>) -> Result<(), App
         access_token,
         access_token_secret,
     );
+    tracing::debug!("token secret: {}", token_secrets.consumer_key);
+
     let client = reqwest::Client::builder()
         .connection_verbose(env::var("RUST_LOG").map(|x| x.starts_with("trace")) == Ok(true))
         .danger_accept_invalid_certs(true)
         .build()?;
+    tracing::debug!("client built ");
 
     // Upload image to X and fetch the media ID
     // Media ID are persistent, so no need to re-upload it every time
@@ -131,6 +136,7 @@ pub async fn x_worker(mut rx: mpsc::Receiver<JobNotification>) -> Result<(), App
         file_name,
     )
     .await?;
+    tracing::debug!("waiting jobs ");
 
     while let Some(notification) = rx.recv().await {
         if let Err(e) = send_x_notification(
