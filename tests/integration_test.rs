@@ -29,8 +29,8 @@ mod tests {
     };
     // use alloy::primitives::utils::format_units;
     use eacc_rs::{
-        telegram_api::telegram_worker, utils::get_from_ipfs, x_api::x_worker, JobNotification,
-        MarketPlaceData, IERC20,
+        fetch_token_usd_price, telegram_api::telegram_worker, utils::get_from_ipfs,
+        x_api::x_worker, JobNotification, MarketPlaceData, IERC20,
     };
     use eyre::{Error, Result};
     use tokio::sync::mpsc;
@@ -78,6 +78,24 @@ mod tests {
 
         let token_decimals = token_contract.decimals().call().await?._0;
         let token_symbol = token_contract.symbol().call().await?._0;
+        let token_name = token_contract.name().call().await?._0;
+        let formatted_amount = format_units(job1.amount, token_decimals)?;
+
+        let decimal_amount: f64 = formatted_amount.parse().unwrap();
+
+        let usd_price = fetch_token_usd_price(&token_name.to_lowercase()).await?;
+        tracing::info!("Token: {}, USD Price: {}", token_name, usd_price);
+        let dollar_value = decimal_amount * usd_price;
+        tracing::info!("JobID: {}, has a dollar value of ${}", id, dollar_value);
+        tracing::info!(
+            "JobID: {}, has token symbol {} and decimals {}",
+            id,
+            token_symbol,
+            token_decimals
+        );
+        if dollar_value < 1.0 {
+            tracing::info!("Skipping job: value below $0.01 (value: ${})", dollar_value);
+        }
 
         let formatted_amount = format_units(job1.amount, token_decimals)?;
         let decimal_amount: f64 = formatted_amount.parse()?;
