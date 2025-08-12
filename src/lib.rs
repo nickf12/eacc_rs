@@ -71,7 +71,7 @@ pub async fn filter_publish_job_events(
                             .get_transaction_by_hash(tx_hash)
                             .await?
                             .ok_or("Transaction not found")
-                            .unwrap();
+                            .unwrap(); // FIXME: unsafe unwrap.
 
                         let input_data = tx.input();
                         let function_selector = &input_data[..4];
@@ -101,17 +101,44 @@ pub async fn filter_publish_job_events(
                                 let job = marketplace_data.getJob(event.jobId).call().await?._0;
                                 let token_contract = IERC20::new(job.token, provider.clone());
 
+                                if job.title.contains("test") {
+                                    continue;
+                                }
                                 // Use multicall when possible to reduce amount of requests to public RPC
                                 let multicall = provider
                                     .multicall()
                                     .add(token_contract.symbol())
-                                    .add(token_contract.decimals());
-                                let (token_symbol, token_decimals) = multicall.aggregate().await?;
+                                    .add(token_contract.decimals())
+                                    .add(token_contract.name());
+
+                                let (token_symbol, token_decimals, token_name) =
+                                    multicall.aggregate().await?;
                                 let token_symbol = token_symbol._0;
 
                                 let token_decimals = token_decimals._0;
+                                let token_name = token_name._0;
                                 let formatted_amount = format_units(job.amount, token_decimals)?;
                                 let decimal_amount: f64 = formatted_amount.parse().unwrap();
+
+                                // TODO: this is the formatted_amount in decimals, you need to make the conversion with USD in order to make the correct evaluation
+
+                                let usd_price =
+                                    fetch_token_usd_price(&token_name.to_lowercase()).await?;
+                                tracing::info!("Token: {}, USD Price: {}", token_name, usd_price);
+                                let dollar_value = decimal_amount * usd_price;
+
+                                if dollar_value < 0.1 {
+                                    tracing::info!(
+                                        "Skipping job: value below $0.1 (value: ${})",
+                                        dollar_value
+                                    );
+                                    continue;
+                                }
+                                // Filter-out not needed notifications:
+                                // - reward amount < 0.01
+                                // - Keywords on Title
+                                // - Keywords on Description
+
                                 tracing::debug!("    - Job Title: {}", job.title);
 
                                 tracing::debug!(
@@ -131,10 +158,11 @@ pub async fn filter_publish_job_events(
                                             data
                                         }
                                         Err(e) => {
-                                            return Err(eyre::eyre!(
+                                            tracing::debug!(
                                                 "Failed to fetch job description from IPFS: {}",
                                                 e
-                                            ));
+                                            );
+                                            continue;
                                         }
                                     };
 
@@ -170,4 +198,35 @@ pub async fn filter_publish_job_events(
         }
     }
     Ok(())
+}
+
+pub async fn fetch_token_usd_price(token_name: &str) -> eyre::Result<f64> {
+    // Example: fetch from CoinGecko API
+    let url =
+        format!("https://api.coingecko.com/api/v3/simple/price?ids={token_name}&vs_currencies=usd");
+
+    let resp = reqwest::get(&url).await;
+    let resp = match resp {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("Failed to fetch price from CoinGecko: {}", e);
+            return Err(eyre::eyre!("Network error fetching price: {}", e));
+        }
+    };
+    let json: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::warn!("Failed to parse CoinGecko response: {}", e);
+            return Err(eyre::eyre!("Failed to parse CoinGecko response: {}", e));
+        }
+    };
+
+    let price = json[token_name]["usd"].as_f64();
+    match price {
+        Some(p) => Ok(p),
+        None => {
+            tracing::warn!("Price not found for token_id: {}", token_name);
+            Err(eyre::eyre!("Price not found for token_id: {}", token_name))
+        }
+    }
 }
