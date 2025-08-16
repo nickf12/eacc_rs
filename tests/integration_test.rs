@@ -68,7 +68,7 @@ mod tests {
             address!("0191ae69d05F11C7978cCCa2DE15653BaB509d9a"),
             provider.clone(),
         );
-        let id = 517;
+        let id = 565;
         let job_id = U256::from(id);
         let job1 = marketplace_data.getJob(job_id).call().await?._0;
 
@@ -77,13 +77,22 @@ mod tests {
         let token_contract = IERC20::new(job1.token, provider.clone());
 
         let token_decimals = token_contract.decimals().call().await?._0;
-        let token_symbol = token_contract.symbol().call().await?._0;
-        let token_name = token_contract.name().call().await?._0;
+        let mut token_symbol = token_contract.symbol().call().await?._0;
+        let mut token_name = token_contract.name().call().await?._0;
         let formatted_amount = format_units(job1.amount, token_decimals)?;
 
         let decimal_amount: f64 = formatted_amount.parse().unwrap();
 
-        let usd_price = fetch_token_usd_price(&token_name.to_lowercase()).await?;
+        let mut usd_price = 1.0;
+        if token_name == "USD₮0" {
+            tracing::info!("Using tether as token name");
+            token_name = "tether".to_string();
+            usd_price = 1.0;
+            token_symbol = "USDT".to_string();
+        } else {
+            tracing::info!("Fetching USD price for token: {}", token_name);
+            usd_price = fetch_token_usd_price(&token_name.to_lowercase()).await?;
+        }
         tracing::info!("Token: {}, USD Price: {}", token_name, usd_price);
         let dollar_value = decimal_amount * usd_price;
         tracing::info!("JobID: {}, has a dollar value of ${}", id, dollar_value);

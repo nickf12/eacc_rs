@@ -113,18 +113,43 @@ pub async fn filter_publish_job_events(
 
                                 let (token_symbol, token_decimals, token_name) =
                                     multicall.aggregate().await?;
-                                let token_symbol = token_symbol._0;
+                                let mut token_symbol = token_symbol._0;
 
                                 let token_decimals = token_decimals._0;
-                                let token_name = token_name._0;
-                                let formatted_amount = format_units(job.amount, token_decimals)?;
+                                let mut token_name = token_name._0;
+                                let formatted_amount: String =
+                                    format_units(job.amount, token_decimals)?;
                                 let decimal_amount: f64 = formatted_amount.parse().unwrap();
 
-                                // TODO: this is the formatted_amount in decimals, you need to make the conversion with USD in order to make the correct evaluation
-
-                                let usd_price =
-                                    fetch_token_usd_price(&token_name.to_lowercase()).await?;
-                                tracing::info!("Token: {}, USD Price: {}", token_name, usd_price);
+                                let mut usd_price = 0.0;
+                                if token_name == "USD₮0" {
+                                    token_name = "tether".to_string();
+                                    usd_price = 1.0;
+                                    token_symbol = "USDT".to_string();
+                                } else {
+                                    usd_price = match fetch_token_usd_price(
+                                        &token_name.to_lowercase(),
+                                    )
+                                    .await
+                                    {
+                                        Ok(price) => price,
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                "Job_id = {}.Failed to fetch USD price for token {}: {}",
+                                                event.jobId,
+                                                token_name,
+                                                e
+                                            );
+                                            1.0
+                                        }
+                                    }
+                                }
+                                tracing::info!(
+                                    "Job_id: {}, Token: {}, USD Price: {}",
+                                    event.jobId,
+                                    token_name,
+                                    usd_price
+                                );
                                 let dollar_value = decimal_amount * usd_price;
 
                                 if dollar_value < 0.1 {
