@@ -35,21 +35,26 @@ Copy and paste the .env.template file, rename it .env and add the needed data fo
 cp .env.template .env
 ```
 
+## Locally
+
 ### Install dependencies
 ```bash
 cargo build
 ```
 
 ### Running
-- Locally
 ```bash
 cargo run --bin eacc_rs
 ```
-- Docker
+
+## Docker
+
+### Build the docker containaer
 ```bash
 docker build -t eacc_rs:latest .
 ```
-- Docker-compose
+
+### Initialize container using docker-compose
 ```bash
 docker-compose up
 ```

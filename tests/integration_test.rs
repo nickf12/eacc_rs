@@ -24,13 +24,14 @@ mod tests {
     use std::time::Duration;
 
     use alloy::{
-        primitives::{address, ruint::aliases::U256, utils::format_units},
-        providers::{ProviderBuilder, WsConnect},
+        primitives::{address, ruint::aliases::U256, utils::format_units, Address},
+        providers::{Provider, ProviderBuilder, WsConnect},
+        rpc::types::Filter,
     };
     // use alloy::primitives::utils::format_units;
     use eacc_rs::{
-        telegram_api::telegram_worker, utils::get_from_ipfs, x_api::x_worker, JobNotification,
-        MarketPlaceData, IERC20,
+        fetch_token_usd_price, telegram_api::telegram_worker, utils::get_from_ipfs,
+        x_api::x_worker, JobNotification, MarketPlace, MarketPlaceData, IERC20,
     };
     use eyre::{Error, Result};
     use tokio::sync::mpsc;
@@ -38,6 +39,103 @@ mod tests {
     use super::*;
     use dotenvy::dotenv;
     use std::env;
+
+    /// This test the MarketPlace Contract
+    /// It fetches a job from the events logs
+    #[tokio::test]
+    async fn test_marketplace_contract() -> Result<(), Error> {
+        init_test_tracing();
+
+        dotenv().ok(); // Loads variables from .env into the process
+
+        tracing::info!("test_marketplace_contract started");
+        let rpc_api = env::var("RPC_API").expect("RPC_API not set");
+
+        // Create ws provider
+        let ws = WsConnect::new(format!(
+            "wss://arbitrum-mainnet.infura.io/ws/v3/{}",
+            rpc_api
+        ));
+        let provider = ProviderBuilder::new().on_ws(ws).await.unwrap();
+        let marketplace = MarketPlace::new(
+            address!("0x405AcFbD1400A168fDd4aDA2D214e8Ae5FF7a624"),
+            provider.clone(),
+        );
+        tracing::info!("test_marketplace_contract contract initialized");
+
+        let filter = Filter::new()
+            .address(address!("0x405AcFbD1400A168fDd4aDA2D214e8Ae5FF7a624"))
+            .event("EACCRewardsDistributed(uint256,address,address,uint256)")
+            .from_block(367628940)
+            .to_block(368205319);
+
+        let logs = provider.get_logs(&filter).await?;
+        // Process the events
+        // Process the events
+
+        if logs.is_empty() {
+            tracing::warn!("No logs found for the specified filter");
+            return Ok(());
+        }
+
+        tracing::info!(
+            "Found {} logs for the EACCRewardsDistributed event",
+            logs.len()
+        );
+
+        for log in logs {
+            tracing::info!("Log: {:?}", log);
+
+            let tx_hash = log.transaction_hash.unwrap_or_default();
+            tracing::info!("Transaction Hash: {:?}", tx_hash);
+            let topics = log.topics();
+            // First topic is the event signature
+            let job_id = U256::from_be_bytes(topics[1].0);
+            let worker = Address::from_slice(&topics[2][12..]);
+            let creator = Address::from_slice(&topics[3][12..]);
+            let data = log.data().data.clone();
+
+            let reward_amount = U256::from_be_slice(&data[0..32]); // Use from_be_slice
+            tracing::info!(
+                "Event: jobId = {}, worker = {:?}, creator = {:?}, reward = {:?}",
+                job_id,
+                worker,
+                creator,
+                reward_amount
+            );
+
+            let job = marketplace.getJob(job_id).call().await?._0;
+            tracing::info!(
+                "Job: id = {}, title = {}, amount = {}, token = {:?}, state = {:?}, tags = {:?}",
+                job_id,
+                job.title,
+                job.amount,
+                job.token,
+                job.state,
+                job.tags
+            );
+            let job_token = IERC20::new(job.token, provider.clone());
+            let token_decimals = job_token.decimals().call().await?._0;
+            let formatted_amount = format_units(reward_amount, token_decimals)?;
+            let formatted_amount_job = format_units(job.amount, token_decimals)?;
+
+            tracing::info!(
+                "Job: id = {}, title = {}, amount = {}, token = {:?}, state = {:?}, tags = {:?}, formatted_amount = {}, formatted_amount_job = {}",
+                job_id,
+                job.title,
+                job.amount,
+                job.token,
+                job.state,
+                job.tags,
+                formatted_amount,
+                formatted_amount_job
+            );
+
+            // let data = log.data().data;
+        }
+
+        Ok(())
+    }
 
     /// This test fetch a correct Job content hash from ipfs
     #[tokio::test]
@@ -68,7 +166,7 @@ mod tests {
             address!("0191ae69d05F11C7978cCCa2DE15653BaB509d9a"),
             provider.clone(),
         );
-        let id = 517;
+        let id = 551;
         let job_id = U256::from(id);
         let job1 = marketplace_data.getJob(job_id).call().await?._0;
 
@@ -77,14 +175,47 @@ mod tests {
         let token_contract = IERC20::new(job1.token, provider.clone());
 
         let token_decimals = token_contract.decimals().call().await?._0;
-        let token_symbol = token_contract.symbol().call().await?._0;
+        let mut token_symbol = token_contract.symbol().call().await?._0;
+        let mut token_name = token_contract.name().call().await?._0;
+        let formatted_amount = format_units(job1.amount, token_decimals)?;
+
+        let decimal_amount: f64 = formatted_amount.parse().unwrap();
+        tracing::info!("Fetching USD price for token: {}", job1.token);
+
+        let usd_price = match fetch_token_usd_price(&job1.token.to_string()).await {
+            Ok(price) => price,
+            Err(e) => {
+                tracing::error!("Error fetching USD price for {}: {}", job1.token, e);
+                // Default to 1.0 if error occurs
+                1.1
+            }
+        };
+
+        tracing::info!("Token: {}, USD Price: {}", job1.token, usd_price);
+
+        let dollar_value = decimal_amount * usd_price;
+        tracing::info!("JobID: {}, has a dollar value of ${}", id, dollar_value);
+        tracing::info!(
+            "JobID: {}, has token symbol {} and decimals {}",
+            id,
+            token_symbol,
+            token_decimals
+        );
+
+        // Skip jobs with value below $1.0
+        if dollar_value < 1.0 {
+            tracing::info!("Skipping job: value below $0.01 (value: ${})", dollar_value);
+        }
 
         let formatted_amount = format_units(job1.amount, token_decimals)?;
         let decimal_amount: f64 = formatted_amount.parse()?;
+        let rounded_decimal_amount = (decimal_amount * 10_000.0).round() / 10_000.0;
+
         tracing::info!(
-            "JobID: {}, has formatted amount of {} ${}",
+            "JobID: {}, has formatted amount of {}, rounded: {}, token -> ${}",
             id,
             decimal_amount,
+            rounded_decimal_amount,
             token_symbol
         );
         // Call the function
@@ -103,6 +234,7 @@ mod tests {
                 tracing::error!("Expected error (e.g., data not found on IPFS): {}", e);
             }
         }
+
         // Create test job
         let test_job = JobNotification {
             job_id: id.to_string(),
@@ -113,8 +245,8 @@ mod tests {
         };
 
         // Send test job to queue
-        telegram_tx.send(test_job.clone()).await?;
-        (twitter_tx).send(test_job.clone()).await?;
+        // (telegram_tx).send(test_job.clone()).await?;
+        // (twitter_tx).send(test_job.clone()).await?;
         tracing::info!("Sent test job to queue");
 
         // Wait briefly to allow worker to process

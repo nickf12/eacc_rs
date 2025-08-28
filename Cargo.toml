@@ -5,14 +5,9 @@ edition = "2021"
 
 [dependencies]
 alloy = { version = "0.12", features = ["full"] }
-# alloy-network = "0.11" # For Ethereum network support
-# alloy-primitives = "0.1"
-# alloy-json-abi ={ version = "0.1"}
 tokio = { version = "1.0", features = ["full"] }
 eyre = "0.6"
-http = "0.2"
 reqwest = { version = "0.11", features = ["json"] }
-futures-util = "0.3" # Use futures-util instead of futures
 futures = "0.3.31"
 serde_json = "1.0.140"
 serde = "1.0.219"
@@ -28,25 +23,24 @@ tracing-log = "0.2"
 # tracing-actix-web = "0.7"
 # teloxide = { version = "0.15.0", features = ["macros"] }
 dotenvy = "0.15"
-actix-web = "4.11.0"
+# actix-web = "4.11.0"
 thiserror = "2.0.12"
-url = "2.5.4"
 twitter-api-v1 = "0.2.1"
-uuid = "1.17.0"
+# uuid = "1.17.0"
 # oauth1-twitter = "0.2.1"
 # twitter-v2 = "0.1.8"  
 
-[dependencies.sqlx]
-version = "0.5.7"
-default-features = false
-features = [
-    "runtime-actix-rustls",
-    "macros",
-    "postgres",
-    "uuid",
-    "chrono",
-    "migrate"
-]
+# [dependencies.sqlx]
+# version = "0.5.7"
+# default-features = false
+# features = [
+#     "runtime-actix-rustls",
+#     "macros",
+#     "postgres",
+#     "uuid",
+#     "chrono",
+#     "migrate"
+# ]
 
 
 [lib]
