@@ -39,7 +39,11 @@ async fn send_x_notification(
             tracing::info!("create_tweet:{ok_json:?}");
             Ok(ok_json.id)
         }
-        _x => Err(AppError::XApi(format!("{:?}", _x))),
+        _x => {
+            tracing::info!("Failed to create tweet: {:?}", _x);
+
+            Err(AppError::XApi(format!("{:?}", _x)))
+        }
     }
 }
 

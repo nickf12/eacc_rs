@@ -25,6 +25,14 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     #[derive(Debug)]
+    MarketPlace,
+    "./src/abis/Marketplace.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    #[derive(Debug)]
     IERC20,
     "./src/abis/IERC20.json"
 );
@@ -37,6 +45,91 @@ pub struct JobNotification {
     pub description: String,
     pub amount: f64,
     pub symbol: String,
+}
+
+// Filter EACCRewardsDistributed events
+#[tracing::instrument(name = "filter_eacc_rewards_distributed", skip(provider))]
+pub async fn filter_eacc_rewards_distributed(
+    provider: impl Provider + Clone,
+    jobs_completed_queue: mpsc::Sender<JobNotification>,
+) -> Result<()> {
+    let marketplace = MarketPlace::new(
+        address!("0x405AcFbD1400A168fDd4aDA2D214e8Ae5FF7a624"),
+        provider.clone(),
+    );
+
+    let eacc_distribution_filter = marketplace
+        .EACCRewardsDistributed_filter()
+        .from_block(278858754);
+
+    match eacc_distribution_filter.subscribe().await {
+        Ok(subscription) => {
+            let mut event_stream = subscription.into_stream();
+
+            while let Some(log) = event_stream.next().await {
+                match log {
+                    Ok((event, raw_log)) => {
+                        // Found a new JobEvent -> evaluate who called it
+                        let tx_hash = raw_log
+                            .transaction_hash
+                            .ok_or("No transaction hash in log")
+                            .unwrap();
+                        let block_number = raw_log.block_number.unwrap_or_default();
+                        let block_timestamp = raw_log.block_timestamp.unwrap_or_default();
+
+                        tracing::info!("Tx hash -> {tx_hash}, Block Number: {block_number}, Timestamp: {block_timestamp}");
+
+                        // let tx = provider
+                        //     .get_transaction_by_hash(tx_hash)
+                        //     .await?
+                        //     .ok_or("Transaction not found")
+                        //     .unwrap();
+                        // let input_data = tx.input();
+
+                        let job_id = event.jobId; // Assuming jobId exists in your event
+                        let job = marketplace.getJob(job_id).call().await?._0; // Get job details
+
+                        let token_contract = IERC20::new(job.token, provider.clone());
+
+                        // Use multicall when possible to reduce amount of requests to public RPC
+                        let multicall = provider
+                            .multicall()
+                            .add(token_contract.symbol())
+                            .add(token_contract.decimals())
+                            .add(token_contract.name());
+
+                        let (token_symbol, token_decimals, token_name) =
+                            multicall.aggregate().await?;
+
+                        let token_symbol = token_symbol._0;
+
+                        let token_decimals = token_decimals._0;
+                        let mut token_name = token_name._0;
+                        let formatted_amount: String = format_units(job.amount, token_decimals)?;
+                        let decimal_amount: f64 = formatted_amount.parse().unwrap();
+
+                        let reward_amount = event.rewardAmount;
+                        let formatted_reward_amount: String =
+                            format_units(reward_amount, token_decimals)?;
+
+                        tracing::info!(
+                            "Job_id: {}, Token: {}, Amount: {}, Reward: {}",
+                            job_id,
+                            token_name,
+                            formatted_amount,
+                            formatted_reward_amount
+                        );
+                        // let decimal_reward_amount: f64 = formatted_reward_amount.parse().unwrap();
+                    }
+                    Err(e) => tracing::error!("    - Error in stream: {:?}", e),
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("RPCError with EACCDist event filter = {}", e)
+        }
+    }
+    unimplemented!();
 }
 
 // Filter for PublishJobEvents
@@ -71,7 +164,7 @@ pub async fn filter_publish_job_events(
                             .get_transaction_by_hash(tx_hash)
                             .await?
                             .ok_or("Transaction not found")
-                            .unwrap(); // FIXME: unsafe unwrap.
+                            .unwrap();
 
                         let input_data = tx.input();
                         let function_selector = &input_data[..4];
@@ -96,14 +189,11 @@ pub async fn filter_publish_job_events(
                             "publishJobEvent(uint256,(uint8,bytes,bytes,uint32))" => {
                                 tracing::info!("Handling publishJobEvent...");
                                 // Access event data
-                                tracing::debug!("Event Data: {:?}", event_data);
+                                tracing::info!("Event Data: {:?}", event_data);
                                 // Get The JobPost data
                                 let job = marketplace_data.getJob(event.jobId).call().await?._0;
                                 let token_contract = IERC20::new(job.token, provider.clone());
 
-                                if job.title.contains("test") {
-                                    continue;
-                                }
                                 // Use multicall when possible to reduce amount of requests to public RPC
                                 let multicall = provider
                                     .multicall()
@@ -121,37 +211,36 @@ pub async fn filter_publish_job_events(
                                     format_units(job.amount, token_decimals)?;
                                 let decimal_amount: f64 = formatted_amount.parse().unwrap();
 
-                                let mut usd_price = 0.0;
-                                if token_name == "USD₮0" {
-                                    token_name = "tether".to_string();
-                                    usd_price = 1.0;
-                                    token_symbol = "USDT".to_string();
-                                } else {
-                                    usd_price = match fetch_token_usd_price(
-                                        &token_name.to_lowercase(),
-                                    )
-                                    .await
-                                    {
+                                // Fetch USD price for the token
+                                let usd_price =
+                                    match fetch_token_usd_price(&job.token.to_string()).await {
                                         Ok(price) => price,
                                         Err(e) => {
-                                            tracing::warn!(
-                                                "Job_id = {}.Failed to fetch USD price for token {}: {}",
-                                                event.jobId,
-                                                token_name,
+                                            tracing::error!(
+                                                "Error fetching USD price for {}: {}",
+                                                job.token,
                                                 e
                                             );
-                                            1.0
+                                            // Default to 1.0 if error occurs
+                                            1.1
                                         }
-                                    }
-                                }
+                                    };
                                 tracing::info!(
                                     "Job_id: {}, Token: {}, USD Price: {}",
                                     event.jobId,
                                     token_name,
                                     usd_price
                                 );
+
                                 let dollar_value = decimal_amount * usd_price;
 
+                                tracing::info!(
+                                    "Job_id: {}, Token: {}, Amount: {}, USD Value: ${}",
+                                    event.jobId,
+                                    token_name,
+                                    formatted_amount,
+                                    dollar_value
+                                );
                                 if dollar_value < 0.1 {
                                     tracing::info!(
                                         "Skipping job: value below $0.1 (value: ${})",
@@ -159,6 +248,9 @@ pub async fn filter_publish_job_events(
                                     );
                                     continue;
                                 }
+                                let rounded_decimal_amount =
+                                    (decimal_amount * 10_000.0).round() / 10_000.0;
+
                                 // Filter-out not needed notifications:
                                 // - reward amount < 0.01
                                 // - Keywords on Title
@@ -168,7 +260,7 @@ pub async fn filter_publish_job_events(
 
                                 tracing::debug!(
                                     "    - Job Amount: {} ${}",
-                                    decimal_amount,
+                                    rounded_decimal_amount,
                                     token_symbol
                                 );
                                 tracing::debug!("    - Job deliveryMethod: {}", job.deliveryMethod);
@@ -195,7 +287,7 @@ pub async fn filter_publish_job_events(
                                     job_id: event.jobId.to_string(),
                                     title: job.title,
                                     description: job_description,
-                                    amount: decimal_amount,
+                                    amount: rounded_decimal_amount,
                                     symbol: token_symbol,
                                 };
                                 match queue_sender.send(notification).await {
@@ -225,17 +317,26 @@ pub async fn filter_publish_job_events(
     Ok(())
 }
 
-pub async fn fetch_token_usd_price(token_name: &str) -> eyre::Result<f64> {
-    // Example: fetch from CoinGecko API
+/// Fetch the USD price of a token using CoinGecko API
+#[tracing::instrument(name = "fetch_token_usd_price")]
+pub async fn fetch_token_usd_price(contract_address: &str) -> eyre::Result<f64> {
     let url =
-        format!("https://api.coingecko.com/api/v3/simple/price?ids={token_name}&vs_currencies=usd");
+        format!(" https://api.coingecko.com/api/v3/simple/token_price/arbitrum-one?contract_addresses={contract_address}&vs_currencies=usd");
 
     let resp = reqwest::get(&url).await;
     let resp = match resp {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!("Failed to fetch price from CoinGecko: {}", e);
-            return Err(eyre::eyre!("Network error fetching price: {}", e));
+            tracing::warn!(
+                "Failed to fetch price from CoinGecko: {}, for address: {}",
+                e,
+                contract_address
+            );
+            return Err(eyre::eyre!(
+                "Network error fetching price: {} for address:{}",
+                e,
+                contract_address
+            ));
         }
     };
     let json: serde_json::Value = match resp.json().await {
@@ -245,13 +346,20 @@ pub async fn fetch_token_usd_price(token_name: &str) -> eyre::Result<f64> {
             return Err(eyre::eyre!("Failed to parse CoinGecko response: {}", e));
         }
     };
+    tracing::info!(
+        "CoinGecko response: {}",
+        json[contract_address.to_lowercase()]
+    );
 
-    let price = json[token_name]["usd"].as_f64();
+    let price = json[contract_address.to_lowercase()]["usd"].as_f64();
     match price {
         Some(p) => Ok(p),
         None => {
-            tracing::warn!("Price not found for token_id: {}", token_name);
-            Err(eyre::eyre!("Price not found for token_id: {}", token_name))
+            tracing::warn!("Price not found for token_id: {}", contract_address);
+            Err(eyre::eyre!(
+                "Price not found for token_id: {}",
+                contract_address
+            ))
         }
     }
 }
