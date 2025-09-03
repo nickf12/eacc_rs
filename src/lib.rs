@@ -58,9 +58,7 @@ pub async fn filter_eacc_rewards_distributed(
         provider.clone(),
     );
 
-    let eacc_distribution_filter = marketplace
-        .EACCRewardsDistributed_filter()
-        .from_block(278858754);
+    let eacc_distribution_filter = marketplace.EACCRewardsDistributed_filter();
 
     match eacc_distribution_filter.subscribe().await {
         Ok(subscription) => {
@@ -74,6 +72,8 @@ pub async fn filter_eacc_rewards_distributed(
                             .transaction_hash
                             .ok_or("No transaction hash in log")
                             .unwrap();
+
+                        // Transaction block number and timestamp
                         let block_number = raw_log.block_number.unwrap_or_default();
                         let block_timestamp = raw_log.block_timestamp.unwrap_or_default();
 
@@ -84,6 +84,7 @@ pub async fn filter_eacc_rewards_distributed(
                         //     .await?
                         //     .ok_or("Transaction not found")
                         //     .unwrap();
+
                         // let input_data = tx.input();
 
                         let job_id = event.jobId; // Assuming jobId exists in your event
@@ -98,19 +99,48 @@ pub async fn filter_eacc_rewards_distributed(
                             .add(token_contract.decimals())
                             .add(token_contract.name());
 
+                        // Fetch token details
                         let (token_symbol, token_decimals, token_name) =
                             multicall.aggregate().await?;
 
                         let token_symbol = token_symbol._0;
 
                         let token_decimals = token_decimals._0;
-                        let mut token_name = token_name._0;
+                        let token_name = token_name._0;
                         let formatted_amount: String = format_units(job.amount, token_decimals)?;
-                        let decimal_amount: f64 = formatted_amount.parse().unwrap();
+                        let _decimal_amount: f64 = formatted_amount.parse().unwrap();
 
+                        // get rewards
                         let reward_amount = event.rewardAmount;
                         let formatted_reward_amount: String =
                             format_units(reward_amount, token_decimals)?;
+
+                        // Calculate protocol reward in USD
+                        let usd_price = match fetch_token_usd_price(&job.token.to_string()).await {
+                            Ok(price) => price,
+                            Err(e) => {
+                                tracing::error!(
+                                    "Error fetching USD price for {}: {}",
+                                    job.token,
+                                    e
+                                );
+                                // Default to 1.1 if error occurs
+                                1.1
+                            }
+                        };
+                        // Calculate percentage fee taken by the protocol 6.96%
+                        let protocol_fee_percentage = 0.0696;
+                        let reward_amount_f64: f64 = formatted_reward_amount.parse().unwrap();
+                        let reward_usd_value =
+                            reward_amount_f64 * usd_price * protocol_fee_percentage;
+
+                        tracing::info!(
+                            "Job_id: {}, Token: {}, Reward Amount: {}, Protocol Fee (6.96%): ${}",
+                            job_id,
+                            token_name,
+                            formatted_reward_amount,
+                            reward_usd_value
+                        );
 
                         tracing::info!(
                             "Job_id: {}, Token: {}, Amount: {}, Reward: {}",
@@ -120,6 +150,17 @@ pub async fn filter_eacc_rewards_distributed(
                             formatted_reward_amount
                         );
                         // let decimal_reward_amount: f64 = formatted_reward_amount.parse().unwrap();
+
+                        // Build notification and send it to the socials
+
+                        // Create Notification
+                        let notification = JobNotification {
+                            job_id: event.jobId.to_string(),
+                            title: job.title,
+                            description: "".to_string(),
+                            amount: reward_amount_f64,
+                            symbol: token_symbol,
+                        };
                     }
                     Err(e) => tracing::error!("    - Error in stream: {:?}", e),
                 }
@@ -143,7 +184,7 @@ pub async fn filter_publish_job_events(
         provider.clone(),
     );
 
-    let filter = marketplace_data.JobEvent_filter().from_block(278858754);
+    let filter = marketplace_data.JobEvent_filter();
 
     match filter.subscribe().await {
         Ok(subscription) => {
@@ -283,6 +324,7 @@ pub async fn filter_publish_job_events(
                                         }
                                     };
 
+                                // Create the notification
                                 let notification = JobNotification {
                                     job_id: event.jobId.to_string(),
                                     title: job.title,
@@ -309,6 +351,7 @@ pub async fn filter_publish_job_events(
                     Err(e) => tracing::error!("    - Error in stream: {:?}", e),
                 }
             }
+            tracing::info!("Event stream ended.");
         }
         Err(e) => {
             tracing::error!("Error JobEvent filter = {}", e)
