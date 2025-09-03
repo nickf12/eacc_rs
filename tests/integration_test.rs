@@ -43,12 +43,12 @@ mod tests {
     /// This test the MarketPlace Contract
     /// It fetches a job from the events logs
     #[tokio::test]
-    async fn test_marketplace_contract() -> Result<(), Error> {
+    async fn test_eaccrewards_distributed_logs() -> Result<(), Error> {
         init_test_tracing();
 
         dotenv().ok(); // Loads variables from .env into the process
 
-        tracing::info!("test_marketplace_contract started");
+        tracing::info!("test_eaccrewards_distributed_logs started");
         let rpc_api = env::var("RPC_API").expect("RPC_API not set");
 
         // Create ws provider
@@ -70,7 +70,6 @@ mod tests {
             .to_block(368205319);
 
         let logs = provider.get_logs(&filter).await?;
-        // Process the events
         // Process the events
 
         if logs.is_empty() {
@@ -175,8 +174,8 @@ mod tests {
         let token_contract = IERC20::new(job1.token, provider.clone());
 
         let token_decimals = token_contract.decimals().call().await?._0;
-        let mut token_symbol = token_contract.symbol().call().await?._0;
-        let mut token_name = token_contract.name().call().await?._0;
+        let token_symbol = token_contract.symbol().call().await?._0;
+        let _token_name = token_contract.name().call().await?._0;
         let formatted_amount = format_units(job1.amount, token_decimals)?;
 
         let decimal_amount: f64 = formatted_amount.parse().unwrap();
@@ -236,7 +235,7 @@ mod tests {
         }
 
         // Create test job
-        let test_job = JobNotification {
+        let _test_job = JobNotification {
             job_id: id.to_string(),
             title: job1.title,
             description: job_description,
